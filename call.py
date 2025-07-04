@@ -21,7 +21,7 @@ def get_summary(prompt, max_retries=5):
     retries = 0
     while retries < max_retries:
         try:
-            with st.spinner("Generating Summary (Gemini)... Please wait."):
+            with st.spinner("Generating Call Summary...Please wait."):
                 response = gemini_model.generate_content(prompt)
                 return response.text.strip()
         except Exception as e:
@@ -112,7 +112,7 @@ def get_talk_listen_ratio(call_id, user, token):
 
 # --- Streamlit UI ---
 st.set_page_config(page_title="Call Summary Generator", layout="wide")
-st.title("📞 CloudTalk Call Analyzer")
+st.title("Call Analyzer")
 
 call_id = st.text_input("Enter Call ID")
 api_user = st.secrets["CT_API_ID"]
@@ -146,35 +146,36 @@ if st.button("Fetch & Summarize Call"):
                 ratios = get_talk_listen_ratio(call_id, api_user, api_token)
 
             # --- Display Info Cards ---
-            st.subheader("📄 Call Details")
+            st.subheader("Call Details")
             col1, col2, col3 = st.columns(3)
 
             with col1:
-                st.metric("📞 Call ID", call_id)
-                st.metric("🗓️ Date", call_date.split("T")[0] if call_date else "N/A")
+                st.metric("Call ID", call_id)
+                st.metric("Date", call_date.split("T")[0] if call_date else "N/A")
 
             with col2:
-                st.metric("🆔 Incident Number", incident_number or "Not found")
-                st.metric("👨‍💼 Agent Name", agent_name or "Not found")
+                st.metric("Incident Number", incident_number or "Not found")
+                st.metric("Agent Name", agent_name or "Not found")
 
             with col3:
-                st.metric("😊 Sentiment", sentiment.capitalize() if sentiment else "Unavailable")
+                st.metric("Sentiment", sentiment.capitalize() if sentiment else "Unavailable")
+                st.caption("⚠️ Sentiments are not 100% accurate — we are continuously working to improve this.")
 
             st.divider()
 
-            st.subheader("🧠 AI-Generated Call Summary")
+            st.subheader("Call Summary")
             st.write(summary)
 
             st.divider()
 
-            st.subheader("🎤 Talk-Listen Ratio")
+            st.subheader("Talk-Listen Ratio")
             for item in ratios:
                 st.write(f"**{item.get('caller')}** — Talking Time: {item.get('talkingTime')} sec, Ratio: {item.get('ratio')}%")
 
             st.divider()
 
-            st.subheader("🗣️ Full Call Transcript")
-            st.text_area("Transcript", value=transcript, height=400)
+            st.subheader("Call Transcript")
+            st.text_area("Transcript", value=transcript, height=200)
 
         except Exception as e:
             st.error(f"❌ An error occurred: {e}")
