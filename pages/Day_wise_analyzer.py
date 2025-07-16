@@ -4,18 +4,10 @@ import base64
 import pandas as pd
 import datetime
 import re
-import time
-import random
 import logging
-import google.generativeai as genai
 import concurrent.futures
 
-# --- Setup Gemini ---
-GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-genai.configure(api_key=GEMINI_API_KEY)
-gemini_model = genai.GenerativeModel("gemini-1.5-flash-8b")
-
-# --- Logging ---
+# --- Logging setup ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # --- Auth helper ---
@@ -38,6 +30,7 @@ def fetch_calls_all_types(date_from, date_to, user, token):
                 f"&type={direction}&status=answered"
                 f"&limit=1000&page={page}"
             )
+            logging.info(f"Fetching calls from URL: {url}")
             resp = requests.get(url, headers=headers)
             resp.raise_for_status()
             data = resp.json().get("responseData", {})
@@ -47,6 +40,17 @@ def fetch_calls_all_types(date_from, date_to, user, token):
                 break
             page += 1
     return results
+
+# --- Fetch sentiment ---
+def fetch_sentiment(call_id, user, token):
+    url = f"https://api.cloudtalk.io/v1/ai/calls/{call_id}/overall-sentiment"
+    headers = get_auth_header(user, token)
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        return response.json().get("overallSentiment", "Unknown").capitalize()
+    except:
+        return "Not Found"
 
 # --- Extract incident number from notes ---
 def extract_incident(notes):
@@ -58,44 +62,16 @@ def extract_incident(notes):
             return match.group(1)
     return "Not Found"
 
-# --- Fetch transcript ---
-def fetch_transcript(call_id, user, token):
-    url = f"https://api.cloudtalk.io/v1/ai/calls/{call_id}/transcription"
-    headers = get_auth_header(user, token)
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
-    segments = response.json()["data"]["segments"]
-    transcript = "\n".join([f"{s['caller']}: {s['text']}" for s in segments])
-    return transcript
-
-# --- Generate Gemini summary ---
-def generate_summary(transcript, max_retries=5):
-    retries = 0
-    while retries < max_retries:
-        try:
-            prompt = (
-                "Summarize the following customer support call in a structured format.\n"
-                "Include:\n1. Problem\n2. Actions Taken\n3. Resolution or Next Steps\n\nTranscript:\n" + transcript
-            )
-            response = gemini_model.generate_content(prompt)
-            return response.text.strip()
-        except Exception as e:
-            wait = min(2 ** retries + random.random(), 30)
-            logging.warning(f"Retrying Gemini in {wait:.1f}s due to: {e}")
-            time.sleep(wait)
-            retries += 1
-    return "Error: Gemini failed to generate summary."
-
-# --- Fetch sentiment ---
-def fetch_sentiment(call_id, user, token):
-    url = f"https://api.cloudtalk.io/v1/ai/calls/{call_id}/overall-sentiment"
+# --- Fetch CloudTalk summary ---
+def fetch_summary(call_id, user, token):
+    url = f"https://api.cloudtalk.io/v1/ai/calls/{call_id}/summary"
     headers = get_auth_header(user, token)
     try:
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
-        return response.json().get("overallSentiment", "Unknown").capitalize()
+        return response.json().get("summary", "Summary not available.")
     except:
-        return "Not Found"
+        return "Summary not available."
 
 # --- Streamlit UI ---
 st.set_page_config(page_title="CloudTalk Call Analyzer", layout="wide")
@@ -115,84 +91,79 @@ if st.button("Fetch & Analyze Calls"):
         st.info("Fetching calls...")
 
         calls = fetch_calls_all_types(date_from, date_to, api_user, api_token)
+        st.success(f"✅ Total calls fetched: {len(calls)}")
 
         if not calls:
-            st.warning("No calls found for this date range.")
+            st.warning("No calls found.")
         else:
-            st.markdown("## ✅ Raw Calls Fetched from CloudTalk")
-            raw_data = []
-            for call in calls:
+            placeholder = st.empty()
+
+            # --- Parallel fetch sentiments ---
+            def get_sentiment_for_call(call):
                 cdr = call.get("Cdr", {})
-                agent = call.get("Agent", {})
                 call_id = cdr.get("id")
-                started_at = cdr.get("started_at", "N/A")
-                direction = cdr.get("type", "Unknown")
-                agent_name = agent.get("fullname", "Unknown")
-                raw_data.append({
-                    "Call ID": call_id,
-                    "Date": started_at,
-                    "Agent Name": agent_name,
-                    "Direction": direction
-                })
-            st.dataframe(pd.DataFrame(raw_data), use_container_width=True)
+                sentiment = fetch_sentiment(call_id, api_user, api_token)
+                return call, sentiment
 
-            st.info("Now processing each call for summaries and transcripts (parallel)...")
+            st.info("Fetching sentiments in parallel...")
 
-            rows = []
+            sentiments_results = []
+            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                futures = [executor.submit(get_sentiment_for_call, call) for call in calls]
+                for idx, future in enumerate(concurrent.futures.as_completed(futures), 1):
+                    call, sentiment = future.result()
+                    sentiments_results.append((call, sentiment))
+                    placeholder.markdown(f"Processed sentiments: **{idx}/{len(calls)}**")
+                    logging.info(f"Call ID: {call.get('Cdr', {}).get('id')} — Sentiment: {sentiment}")
 
-            # --- Define worker function for parallel execution ---
-            def process_call(call):
+            # --- Filter negative sentiment calls ---
+            negative_calls = [(call, sentiment) for call, sentiment in sentiments_results if sentiment == "Negative"]
+
+            st.success(f"✅ Negative calls found: {len(negative_calls)}")
+
+            # --- Parallel fetch incident & summary for negatives ---
+            def process_negative_call(call, sentiment):
                 cdr = call.get("Cdr", {})
                 agent = call.get("Agent", {})
                 notes = call.get("Notes", [])
 
                 call_id = cdr.get("id")
-                started_at = cdr.get("started_at", "")
-                call_date = started_at.split("T")[0] if started_at else "N/A"
+                started_at = cdr.get("started_at", "N/A")
                 direction = cdr.get("type", "Unknown")
                 agent_name = agent.get("fullname", "Unknown")
 
                 incident_number = extract_incident(notes)
-                sentiment = fetch_sentiment(call_id, api_user, api_token)
-
-                try:
-                    transcript = fetch_transcript(call_id, api_user, api_token)
-                except:
-                    transcript = "Transcript not available."
-
-                summary = generate_summary(transcript) if transcript != "Transcript not available." else "Summary not available."
+                summary = fetch_summary(call_id, api_user, api_token)
 
                 return {
                     "Call ID": call_id,
-                    "Date": call_date,
+                    "Date": started_at,
                     "Agent Name": agent_name,
                     "Direction": direction,
-                    "Incident Number": incident_number,
                     "Sentiment": sentiment,
-                    "Summary": summary,
-                    "Transcript": transcript
+                    "Incident Number": incident_number,
+                    "Summary": summary
                 }
 
-            # --- Process in parallel using ThreadPoolExecutor ---
-            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-                future_to_call = {executor.submit(process_call, call): call for call in calls}
-                for future in concurrent.futures.as_completed(future_to_call):
-                    rows.append(future.result())
+            st.info("Fetching incident numbers & summaries for negative calls...")
 
-            df = pd.DataFrame(rows)
-            st.success("✅ Calls analyzed successfully!")
+            negative_results = []
+            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                futures = [executor.submit(process_negative_call, call, sentiment) for call, sentiment in negative_calls]
+                for idx, future in enumerate(concurrent.futures.as_completed(futures), 1):
+                    negative_results.append(future.result())
+                    placeholder.markdown(f"Processed negative calls: **{idx}/{len(negative_calls)}**")
 
-            for row in rows:
-                with st.expander(f"📞 Call ID: {row['Call ID']} | Agent: {row['Agent Name']} | Date: {row['Date']} | Direction: {row['Direction']}"):
-                    st.markdown(f"**Incident Number:** {row['Incident Number']}")
-                    st.markdown(f"**Sentiment:** {row['Sentiment']}")
-                    st.markdown("### 📝 Summary")
-                    st.write(row["Summary"])
-                    st.markdown("### 📄 Transcript")
-                    st.text_area("Transcript", row["Transcript"], height=300, key=f"transcript_{row['Call ID']}")
+            placeholder.success("✅ Done processing all negative calls!")
 
-            csv = df.to_csv(index=False).encode("utf-8")
-            st.download_button("Download All Calls as CSV", csv, f"cloudtalk_calls_{date_from}_to_{date_to}.csv", "text/csv")
+            if negative_results:
+                df = pd.DataFrame(negative_results)
+                st.dataframe(df, use_container_width=True)
+
+                csv = df.to_csv(index=False).encode("utf-8")
+                st.download_button("Download Negative Calls CSV", csv, f"negative_calls_{date_from}_to_{date_to}.csv", "text/csv")
+            else:
+                st.info("No negative sentiment calls found.")
 
     except Exception as e:
         st.error(f"Error: {e}")
