@@ -111,6 +111,7 @@ if incident_number and cookies_file:
             work_notes = row.get("work_notes", "")
             resolution = row.get("u_resolution_summary", "")
             subcategory = row.get("u_reporting_subcategory", "")
+            state = row.get("state", "")
 
             # --- Display Structured Info ---
             st.subheader("📝 Incident Details")
@@ -126,20 +127,32 @@ if incident_number and cookies_file:
 
             # --- Build prompt for Gemini ---
             prompt = (
-                f"You are analyzing a ServiceNow incident.\n\n"
+                "You are a professional incident analyst helping a support team understand ServiceNow tickets. "
+
+                "Follow this exact structure:\n\n"
+
+                "1️⃣ **Issue:** \n\n"
+
+                "2️⃣ **Troubleshooting Steps Performed:**  this should be detailed and in points\n\n"
+
+                "3️⃣ **Actions to be taken or resolution:**  \n\n"
+
+                "Keep the summary informativE. Your tone should be professional and clear.\n\n"
+
+                "### Incident Data:\n"
                 f"Incident Number: {number}\n"
                 f"Short Description: {short_desc}\n"
                 f"Description: {description}\n"
                 f"Additional Comments: {comments}\n"
                 f"Work Notes: {work_notes}\n"
                 f"Resolution Summary: {resolution}\n"
-                f"Reporting Subcategory: {subcategory}\n\n"
-                f"Summarize the incident. Highlight core issue and key troubleshooting steps.\n"
+                f"Reporting Subcategory: {subcategory}\n"
+                f"State: {state}\n\n"
                 f"Do not assume or add anything not in the text."
             )
 
             summary = summarize_with_gemini(prompt)
-
+            
             # --- Display Summary ---
             st.divider()
             st.subheader("Incident Summary")
