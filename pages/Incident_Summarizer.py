@@ -62,6 +62,8 @@ with st.expander("📘 How to Use"):
     4. 🔍 Enter an incident number like `INC1234567`
     """)
 
+st.warning("Make sure following columns are added in your SNOW (Number, Short Description, Description, Additional Comments, Work Notes, Resolution Summary, State, Reporting Subcategory)")
+
 incident_number = st.text_input("Incident Number", placeholder="e.g., INC1234567").strip()
 cookies_file = st.file_uploader("Upload cookies.txt", type="txt")
 
@@ -107,11 +109,24 @@ if incident_number and cookies_file:
             number = row.get("number", "")
             short_desc = row.get("short_description", "")
             description = row.get("description", "")
-            comments = row.get("additional_comments", "")
+            comments = row.get("comments", "")
             work_notes = row.get("work_notes", "")
             resolution = row.get("u_resolution_summary", "")
             subcategory = row.get("u_reporting_subcategory", "")
             state = row.get("state", "")
+
+            single_row_df = pd.DataFrame([{
+                                "Number": row.get("number", ""),
+                                "Short Description": row.get("short_description", ""),
+                                "Description": row.get("description", ""),
+                                "Comments": row.get("comments", ""),
+                                "Work Notes": row.get("work_notes", ""),
+                                "Resolution": row.get("u_resolution_summary", ""),
+                                "Subcategory": row.get("u_reporting_subcategory", ""),
+                                "State": row.get("state", "")
+                            }])
+
+            st.dataframe(single_row_df)
 
             # --- Display Structured Info ---
             st.subheader("📝 Incident Details")
@@ -134,6 +149,8 @@ if incident_number and cookies_file:
                 "1️⃣ **Issue:** \n\n"
 
                 "2️⃣ **Troubleshooting Steps Performed:**  this should be detailed and in points\n\n"
+
+                "3️⃣ **Most Recent Update:** , you get this from most recent work notes and additional comments as pr the latest timestamp."
 
                 "3️⃣ **Actions to be taken or resolution:**  \n\n"
 
