@@ -148,13 +148,14 @@ if incident_number and cookies_file:
 
                 "1️⃣ **Issue:** \n\n"
 
-                "2️⃣ **Troubleshooting Steps Performed:**  this should be detailed and in points\n\n"
+                "2️⃣ **Troubleshooting Steps Performed:**  this should be detailed and in points, make bullet points of actions, also make sure you capture every small detail\n\n"
 
-                "3️⃣ **Most Recent Update:** , you get this from most recent work notes and additional comments as pr the latest timestamp."
+                "3️⃣ **Most Recent Update:** , you get this from most recent work notes and additional comments as per the latest timestamp.\n\n"
 
-                "3️⃣ **Actions to be taken or resolution:**  \n\n"
+                "4️⃣ **Actions to be taken or resolution:**  \n\n"
 
-                "Keep the summary informativE. Your tone should be professional and clear.\n\n"
+                "Keep the summary informative. Your tone should be professional and clear.\n\n"
+                "### Incident Data:\n"
 
                 "### Incident Data:\n"
                 f"Incident Number: {number}\n"
