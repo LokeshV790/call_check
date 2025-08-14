@@ -139,7 +139,7 @@ if incident_numbers and cookies_file:
 
                         "1️⃣ **Issue:** \n\n"
 
-                        "2️⃣ **Troubleshooting Steps Performed:**  this should be detailed and in points\n\n"
+                        "2️⃣ **Troubleshooting Steps Performed:**  this should be detailed and in points, make bullet points of actions, also make sure you capture every small detail\n\n"
 
                         "3️⃣ **Most Recent Update:** , you get this from most recent work notes and additional comments as per the latest timestamp.\n\n"
 
