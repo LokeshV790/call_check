@@ -26,7 +26,7 @@ def get_summary(prompt):
 # --- Streamlit App ---
 def main():
     st.set_page_config(page_title="ServiceNow Incident Summarizer", layout="wide")
-    st.title("🔍 ServiceNow Incident Analysis & Timeline Summary")
+    st.title("Incident Summary Generator")
     st.write("Upload your ServiceNow ticket dataset (CSV file) below.")
     st.warning(
         'Make sure header row contains: "Number", "Short description", "Description", '

@@ -126,14 +126,14 @@ def get_talk_listen_ratio(call_id, user, token):
 
 # ------------------- STREAMLIT UI -------------------
 
-st.title("📞 Call Analyzer")
+st.title("Sentiment Analyzer")
 st.caption("Analyze calls from CloudTalk — fetch transcript, sentiment, talk/listen ratio, and AI-powered summary.")
 
 call_id = st.text_input("Enter Call ID", placeholder="e.g., 932690427")
 api_user = st.secrets["CT_API_ID"]
 api_token = st.secrets["CT_API_KEY"]
 
-if st.button("🚀 Fetch & Summarize Call"):
+if st.button("Fetch Call"):
     if not call_id:
         st.warning("Please enter a Call ID.")
     else:
