@@ -10,8 +10,13 @@ import google.generativeai as genai
 # --- Configure Gemini ---
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=GEMINI_API_KEY)
-gemini_model = genai.GenerativeModel("gemini-1.5-flash-8b")
-
+gemini_model = genai.GenerativeModel(
+    "gemini-2.0-flash-lite",
+    generation_config={
+        "temperature": 0.2,   # lower = more deterministic, less variety
+        "top_p": 0.8,        # nucleus sampling
+    }
+)
 # --- SNOW Base URL from secrets ---
 BASE_URL = st.secrets["SNOW_BASE_URL"]
 
@@ -133,30 +138,38 @@ if incident_numbers and cookies_file:
 
                     # --- Prompt for Gemini ---
                     prompt = (
-                        "You are a professional incident analyst helping a support team understand ServiceNow tickets. "
-
+                        "You are a professional incident analyst helping a support team understand ServiceNow tickets.\n\n"
                         "Follow this exact structure:\n\n"
-
-                        "1️⃣ **Issue:** \n\n"
-
-                        "2️⃣ **Troubleshooting Steps Performed:**  this should be detailed and in points, make bullet points of actions, also make sure you capture every small detail\n\n"
-
-                        "3️⃣ **Most Recent Update:** , you get this from most recent work notes and additional comments as per the latest timestamp.\n\n"
-
-                        "4️⃣ **Actions to be taken or resolution:**  \n\n"
-
+                        "1️⃣ **Issue:**\n"
+                        "- Clearly state the problem based only on Description and Short Description.\n\n"
+                        "2️⃣ **Troubleshooting Steps Performed:** -- this should be detailed bullet points\n"
+                        "- Write each as a separate bullet point starting with '- '.\n"
+                        "- Group by timestamps"
+                        "- Extract every action, observation, or note from Work Notes and Additional Comments.\n"
+                        "- Capture the sequence of events as they occurred.\n"
+                        "- also capture the steps given by the support team in the additional comments and work notes\n"
+                        "- Ensure clarity and completeness in each bullet point.\n"
+                        "- Do not merge multiple steps into one line.\n"
+                        "- Capture even the smallest details, including who performed the action (if mentioned).\n\n"
+                        "3️⃣ **Most Recent Update:**\n"
+                        "- Identify the most recent entry from Work Notes or Additional Comments based on timestamps.\n"
+                        "- Present it in full detail.\n\n"
+                        "4️⃣ **Actions to be taken or resolution:**\n"
+                        "- State the final resolution if provided.\n"
+                        "- If unresolved, clearly mention pending actions.\n\n"
+                        "⚠️ Rules:\n"
+                        "- Do not assume or add anything not present in the incident data.\n"
+                        "- Dont skip any troubleshooting steps, capture everything.\n"
+                        "- Keep the tone professional and clear.\n"
+                        "- Ensure Troubleshooting Steps are always in bullet format.\n\n"
                         "Keep the summary informative. Your tone should be professional and clear.\n\n"
-
                         "### Incident Data:\n"
-                        f"Incident Number: {number}\n"
-                        f"Short Description: {short_desc}\n"
-                        f"Description: {description}\n"
-                        f"Additional Comments: {comments}\n"
-                        f"Work Notes: {work_notes}\n"
-                        f"Resolution Summary: {resolution}\n"
-                        f"Reporting Subcategory: {subcategory}\n"
-                        f"State: {state}\n\n"
-                        f"Do not assume or add anything not in the text."
+                        f"- **Ticket Number:** {row.get('number', 'N/A')}\n"
+                        f"- **Short Description:** {row.get('short_description', 'N/A')}\n"
+                        f"- **Description:** {row.get('description', 'N/A')}\n"
+                        f"**Work Notes:** {row.get('work_notes', 'N/A')}\n"
+                        f"**Additional Comments:** {row.get('comments', 'N/A')}\n"
+                        f"**State:** {row.get('state', 'N/A')}\n"
                     )
 
                     summary = summarize_with_gemini(prompt)
