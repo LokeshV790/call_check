@@ -113,9 +113,14 @@ def fetch_transcript(call_id, user, token):
 def get_sentiment(call_id, user, token):
     headers = get_auth_header(user, token)
     url = f"https://api.cloudtalk.io/v1/ai/calls/{call_id}/overall-sentiment"
-    r = requests.get(url, headers=headers)
-    r.raise_for_status()
-    return r.json().get("overallSentiment", "Unavailable")
+    
+    try:
+        r = requests.get(url, headers=headers)
+        r.raise_for_status()
+        return r.json().get("overallSentiment", "Unavailable")
+    except Exception as e:
+        logging.error(f"Error fetching sentiment: {e}")
+        return "Error"
 
 def get_talk_listen_ratio(call_id, user, token):
     headers = get_auth_header(user, token)
