@@ -11,7 +11,7 @@ import google.generativeai as genai
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=GEMINI_API_KEY)
 gemini_model = genai.GenerativeModel(
-    "gemini-2.0-flash-lite",
+    "gemma-3-27b-it",
     generation_config={
         "temperature": 0.2,   # lower = more deterministic, less variety
         "top_p": 0.8,        # nucleus sampling
