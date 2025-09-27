@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # --- Gemini Setup ---
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=GEMINI_API_KEY)
-gemini_model = genai.GenerativeModel("gemini-1.5-flash-8b")
+gemini_model = genai.GenerativeModel("gemini-2.0-flash-lite")
 
 # --- Auth Helper ---
 def get_auth_header(user, token):

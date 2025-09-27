@@ -22,7 +22,7 @@ CT_TOKEN = st.secrets["CT_API_KEY"]
 
 # ---------------- Gemini Setup ----------------
 genai.configure(api_key=GEMINI_API_KEY)
-gemini_model = genai.GenerativeModel("gemini-1.5-flash-8b")
+gemini_model = genai.GenerativeModel("gemini-2.0-flash-lite")
 
 # ---------------- Helpers ----------------
 def summarize_large_text(text, chunk_size=8000):
